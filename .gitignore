@@ -1,0 +1,6 @@
+*.log
+*.jou
+*.Xil/
+*.logfile
+*.str
+example/build/

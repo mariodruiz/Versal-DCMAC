@@ -1,0 +1,13 @@
+* text eol=lf
+*.txt eol=lf
+*.md eol=lf
+*.tcl eol=lf
+*.xdc eol=lf
+
+# These are binary so should never be modified by git.
+*.png binary
+*.jpg binary
+*.jpe binary
+*.jpeg binary
+*.JPG binary
+*.PNG binary
