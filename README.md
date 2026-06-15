@@ -4,6 +4,8 @@ Reusable Vivado block design for the AMD DCMAC on Versal. Ships the HDL,
 the TCL build script, and a standalone BD project so you can pull DCMAC into
 a Versal design without rebuilding it from scratch.
 
+DISCLAIMER: While tested and functional, this repository is still a work in progress and may need minor changes to fit other projects.
+
 ## Scope
 
 Targets the V80 in 200GAUI-4 mode with RS(544) FEC. A single DCMAC instance
