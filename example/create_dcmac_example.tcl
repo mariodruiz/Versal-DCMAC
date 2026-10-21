@@ -95,7 +95,7 @@ if { $wrap_qsfp == 1 } {
     make_bd_intf_pins_external  [get_bd_cells ${hier_name}]
     set_property CONFIG.FREQ_HZ 322265625 [get_bd_intf_ports -filter {VLNV =~ "*diff_clock*"}]
     set_property CONFIG.FREQ_HZ 100000000 [get_bd_ports -filter {NAME =~ "clk_freerunning*"}]
-    set_property CONFIG.FREQ_HZ 390625000 [get_bd_ports -filter {NAME =~ "aclk*"}]
+    set_property CONFIG.FREQ_HZ [expr {$nclk_f * 1000000}] [get_bd_ports -filter {NAME =~ "aclk*"}]
     save_bd_design
     close_bd_design $design_name
 }
