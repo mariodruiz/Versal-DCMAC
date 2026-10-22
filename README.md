@@ -65,7 +65,7 @@ it is derived from the GT reference clock, which disappears during
 reconfiguration of a reconfigurable region.
 
 For reconfigurable regions use the wrapped-QSFP flow (`bd_dcmac_qsfp`), which
-exposes an external `clk_freerunning` input. This clock must be **100 MHz**,
+exposes an external `freerunning_clk` input. This clock must be **100 MHz**,
 sourced from outside the reconfigurable region and stable during reconfiguration.
 It drives `sys_clk` and, when `dcmac_axil=1`, it drives the AXI4-Lite path.
 The flat `bd_dcmac` flow keeps the GT-derived `sys_clk` and routes the

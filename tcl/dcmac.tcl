@@ -1646,19 +1646,19 @@ proc bd_dcmac_qsfp { parentCell {dcmac_index 0} {dual_dcmac 0} {dcmac_axil 0} {b
     }
 
     current_bd_instance [get_bd_cells ${qsfp_hier_name}]
-    set clk_free [create_bd_pin -dir I -type clk clk_freerunning]
+    set clk_free [create_bd_pin -dir I -type clk freerunning_clk]
     current_bd_instance $parentObj
 
     # Enter bd_clock_reset_ctrl: add input pin and rewire dcmac_reset_ctrl/sys_clk
     current_bd_instance [get_bd_cells ${qsfp_hier_name}/bd_clock_reset_ctrl]
-    create_bd_pin -dir I -type clk clk_freerunning
+    create_bd_pin -dir I -type clk freerunning_clk
     disconnect_bd_net [get_bd_nets -of_objects [get_bd_pins dcmac_reset_ctrl/sys_clk]] \
         [get_bd_pins dcmac_reset_ctrl/sys_clk]
-    connect_bd_net [get_bd_pins clk_freerunning] [get_bd_pins dcmac_reset_ctrl/sys_clk]
+    connect_bd_net [get_bd_pins freerunning_clk] [get_bd_pins dcmac_reset_ctrl/sys_clk]
     current_bd_instance $parentObj
 
     # Wire top-level pin into bd_clock_reset_ctrl and replace sys_clk external sinks
-    connect_bd_net $clk_free [get_bd_pins ${qsfp_hier_name}/bd_clock_reset_ctrl/clk_freerunning]
+    connect_bd_net $clk_free [get_bd_pins ${qsfp_hier_name}/bd_clock_reset_ctrl/freerunning_clk]
 
     disconnect_bd_net [get_bd_nets -of_objects [get_bd_pins ${qsfp_hier_name}/bd_clock_reset_ctrl/sys_clk]] \
         [get_bd_pins ${qsfp_hier_name}/bd_clock_reset_ctrl/sys_clk] \
