@@ -128,7 +128,7 @@ proc _bnd_pin { inline args } {
 ##################################################################
 
 # Hierarchical cell: bd_clock_reset_ctrl
-proc create_hier_cell_bd_clock_reset_ctrl { parentCell nameHier } {
+proc create_hier_cell_bd_clock_reset_ctrl { parentCell nameHier {dcmac_axil 0} } {
 
   variable script_folder
 
@@ -246,6 +246,15 @@ proc create_hier_cell_bd_clock_reset_ctrl { parentCell nameHier } {
   connect_bd_net -net diff_buff_IBUFDS_GTME5_ODIV2  [get_bd_pins diff_buff/IBUFDS_GTME5_ODIV2] [get_bd_pins bufgt_dcmac/outclk]
   connect_bd_net -net gt_reset_done_rx_1  [get_bd_pins gt_reset_done_rx] [get_bd_pins dcmac_reset_ctrl/gt_reset_done_rx]
   connect_bd_net -net gt_reset_done_tx_1  [get_bd_pins gt_reset_done_tx] [get_bd_pins dcmac_reset_ctrl/gt_reset_done_tx]
+
+  if { $dcmac_axil == 1 } {
+    set axil_psr [create_bd_cell -type ip -vlnv xilinx.com:ip:proc_sys_reset axil_psr]
+    set_property CONFIG.C_EXT_RESET_HIGH {0} $axil_psr
+    connect_bd_net [get_bd_pins sys_clk]  [get_bd_pins axil_psr/slowest_sync_clk]
+    connect_bd_net [get_bd_pins aresetn]  [get_bd_pins axil_psr/ext_reset_in]
+    create_bd_pin -dir O -type rst axil_aresetn
+    connect_bd_net [get_bd_pins axil_psr/interconnect_aresetn] [get_bd_pins axil_aresetn]
+  }
 
   # Restore current instance
   current_bd_instance $oldCurInst
@@ -828,9 +837,6 @@ proc create_hier_cell_dcmac_wrapper { parentCell nameHier {dcmac_index 0} {dual_
   connect_bd_net -net serdes_clk_tx_serdes_clk  [get_bd_pins serdes_clk_tx/serdes_clk] [get_bd_pins $dcmac_name/tx_serdes_clk]
 
   if { ${dcmac_axil} == "1" } {
-    # AXI4-Lite shares the user aclk/aresetn domain. ts_axil_clk feeds only the
-    # ts_clk generator; the DCMAC's s_axi_aclk is driven by the wrapper's
-    # s_axi_aclk hier pin (which the top level ties to aclk).
     connect_bd_net -net ts_clk_1 [get_bd_pins ts_axil_clk] [get_bd_pins ts_clk/clk]
     connect_bd_net [get_bd_pins s_axi_aclk] [get_bd_pins $dcmac_name/s_axi_aclk]
   } else {
@@ -1447,7 +1453,7 @@ proc bd_dcmac { parentCell {dcmac_index 0} {dual_dcmac 0} {dcmac_axil 0} {board 
         create_hier_cell_datapath_tx [current_bd_instance .] ${datapath_tx_name_1} ${dcmac_index}
         create_hier_cell_datapath_rx [current_bd_instance .] ${datapath_rx_name_1} ${dcmac_index}
     }
-    create_hier_cell_bd_clock_reset_ctrl [current_bd_instance .] bd_clock_reset_ctrl
+    create_hier_cell_bd_clock_reset_ctrl [current_bd_instance .] bd_clock_reset_ctrl ${dcmac_axil}
 
     # Create interface connections (use handle variables so this works for
     # both port and pin boundaries — see _bnd_intf above).
@@ -1562,7 +1568,8 @@ proc bd_dcmac { parentCell {dcmac_index 0} {dual_dcmac 0} {dcmac_axil 0} {board 
             [get_bd_pins $sc/aclk] \
             [get_bd_pins dcmac_wrapper/s_axi_aclk]
         connect_bd_net $aresetn \
-            [get_bd_pins $sc/aresetn] \
+            [get_bd_pins $sc/aresetn]
+        connect_bd_net [get_bd_pins bd_clock_reset_ctrl/axil_aresetn] \
             [get_bd_pins dcmac_wrapper/s_axi_aresetn]
     }
 
@@ -1649,15 +1656,19 @@ proc bd_dcmac_qsfp { parentCell {dcmac_index 0} {dual_dcmac 0} {dcmac_axil 0} {b
     set clk_free [create_bd_pin -dir I -type clk freerunning_clk]
     current_bd_instance $parentObj
 
-    # Enter bd_clock_reset_ctrl: add input pin and rewire dcmac_reset_ctrl/sys_clk
     current_bd_instance [get_bd_cells ${qsfp_hier_name}/bd_clock_reset_ctrl]
     create_bd_pin -dir I -type clk freerunning_clk
     disconnect_bd_net [get_bd_nets -of_objects [get_bd_pins dcmac_reset_ctrl/sys_clk]] \
         [get_bd_pins dcmac_reset_ctrl/sys_clk]
     connect_bd_net [get_bd_pins freerunning_clk] [get_bd_pins dcmac_reset_ctrl/sys_clk]
+
+    if { $dcmac_axil == 1 } {
+        disconnect_bd_net [get_bd_nets -of_objects [get_bd_pins axil_psr/slowest_sync_clk]] \
+            [get_bd_pins axil_psr/slowest_sync_clk]
+        connect_bd_net [get_bd_pins freerunning_clk] [get_bd_pins axil_psr/slowest_sync_clk]
+    }
     current_bd_instance $parentObj
 
-    # Wire top-level pin into bd_clock_reset_ctrl and replace sys_clk external sinks
     connect_bd_net $clk_free [get_bd_pins ${qsfp_hier_name}/bd_clock_reset_ctrl/freerunning_clk]
 
     disconnect_bd_net [get_bd_nets -of_objects [get_bd_pins ${qsfp_hier_name}/bd_clock_reset_ctrl/sys_clk]] \
@@ -1680,6 +1691,7 @@ proc bd_dcmac_qsfp { parentCell {dcmac_index 0} {dual_dcmac 0} {dcmac_axil 0} {b
         connect_bd_net $clk_free \
             [get_bd_pins ${qsfp_hier_name}/dcmac_wrapper/s_axi_aclk] \
             [get_bd_pins ${qsfp_hier_name}/s_axi_smartconnect/aclk]
+
     }
 
     # Boundary pin names (S_AXIS_<idx>, M_AXIS_<idx>, qsfp_gt_clk, qsfp_gt0/1)
